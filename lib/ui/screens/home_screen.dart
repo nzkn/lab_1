@@ -14,15 +14,41 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   bool loading;
   List<LocationWeather> locations;
   Repo repo = Repo();
+  Animation<double> _smoothAnimation;
+  Animation<double> _fastAnimation;
+  AnimationController _controller;
 
   @override
   void initState() {
     loading = false;
     locations = [];
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: 4),
+    )..addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _controller.reverse();
+      } else if (status == AnimationStatus.dismissed) {
+        _controller.forward();
+      }
+    })..repeat();
+
+    _smoothAnimation = Tween<double>(begin: 0.0, end: 3)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
+    _fastAnimation = Tween<double>(begin: 2.0, end: 10)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _controller.reverse();
+      } else if (status == AnimationStatus.dismissed) {
+        _controller.forward();
+      }
+    });
     super.initState();
   }
 
@@ -144,21 +170,56 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            temp,
-            style: Styles.basicTextStyle
-                .copyWith(fontWeight: FontWeight.w400),
+            temp ?? "",
+            style: Styles.basicTextStyle.copyWith(fontWeight: FontWeight.w400),
           ),
           Text(
             day,
-            style: Styles.basicTextStyle
-                .copyWith(
+            style: Styles.basicTextStyle.copyWith(
               fontWeight: FontWeight.w400,
               fontSize: 12,
             ),
           ),
+          Stack(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+              ),
+              Positioned(
+                top: double.parse(temp) <= 0
+                    ? _fastAnimation.value
+                    : _smoothAnimation.value,
+                child: _buildWeatherIconWidget(
+                  double.parse(temp),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildWeatherIconWidget(double temp) {
+    if (temp >= 10) {
+      return Positioned(
+        child: Icon(
+          Icons.wb_sunny,
+          color: AppColors.sun,
+        ),
+      );
+    } else if (temp > 0 && temp < 10) {
+      return Icon(
+        Icons.cloud,
+        color: AppColors.cloud,
+      );
+    } else {
+      return Icon(
+        Icons.ac_unit_rounded,
+        color: AppColors.snow,
+      );
+    }
   }
 
   void _onDetectLocationPressed() async {
